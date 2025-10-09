@@ -113,13 +113,20 @@ def generate_category_month_note_body(year, month, category, transactions):
     document = ""
     frontmatter = create_category_month_frontmatter(year, month, category, transactions)
     document += frontmatter_dict_to_md(frontmatter)
-    document += "\n# Transactions\n\n"
-    document += "| Account | Payee | YNAB Category | Amount | Link |\n"
-    document += "| ------- | ----- | ------------- | ------ | ---- |\n"
-    for transaction in transactions:
-        amount = normalize_amount(transaction.amount) * -1
-        document += f"| {transaction.account_name} | {transaction.payee_name} | {transaction.category_name} | {amount} | [[{transaction.id}]] |\n"
-    document += "\n^transaction-table\n"
+    document += "# Transactions"
+    document += f"""
+```dataview
+        TABLE WITHOUT ID
+            date AS "Date",
+            account AS "Account",
+            payee AS "Payee",
+            ynab_category AS "YNAB Category",
+            currencyformat(amount * -1, "USD") AS "Spent",
+            file.link AS "Link"
+        FROM "Transactions/{year}/{month}"
+        WHERE category = "{category}"
+        SORT date ASC
+```\n"""
     document += "# Notes\n\n"
     return document
 
