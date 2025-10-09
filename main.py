@@ -1,5 +1,6 @@
 import datetime
 import os
+from collections import defaultdict
 
 import requests
 import yaml
@@ -61,16 +62,66 @@ def get_app_config():
     return new_app_config
 
 
+def create_category_month_note(year, month, category, transactions):
+    document = generate_category_month_note_body(year, month, category, transactions)
+    put_category_month_note(year, month, category, document)
+
+
 def process_transactions(transactions):
-    reportable_transactions = (t for t in transactions if is_transaction_reportable(t))
+    reportable_transactions = [t for t in transactions if is_transaction_reportable(t)]
     for transaction in reportable_transactions:
-        print(f"Payee: {transaction.payee_name} -> {transaction.amount}")
-        document = ""
-        frontmatter = create_transaction_frontmatter(transaction)
-        document += transaction_frontmatter_to_md(frontmatter)
-        if transaction.memo:
-            document += f"{transaction.memo}\n"
-        put_transaction_note(transaction, document)
+        create_transaction_note(transaction)
+
+    transactions_by_year_month_category = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(list))
+    )
+    spending_transactions = [
+        t for t in reportable_transactions if not is_transaction_income(t)
+    ]
+    for transaction in spending_transactions:
+        year = transaction.var_date.year
+        month = transaction.var_date.month
+        category = map_category(transaction.category_name)
+        transactions_by_year_month_category[year][month][category].append(transaction)
+
+    for year in transactions_by_year_month_category.keys():
+        for month in transactions_by_year_month_category[year].keys():
+            for category in transactions_by_year_month_category[year][month].keys():
+                create_category_month_note(
+                    year,
+                    month,
+                    category,
+                    transactions_by_year_month_category[year][month][category],
+                )
+
+
+def create_transaction_note(transaction):
+    document = generate_transaction_note_body(transaction)
+    put_transaction_note(transaction, document)
+
+
+def generate_transaction_note_body(transaction) -> str:
+    document = ""
+    frontmatter = create_transaction_frontmatter(transaction)
+    document += frontmatter_dict_to_md(frontmatter)
+    if transaction.memo:
+        document += f"{transaction.memo}\n"
+    return document
+
+
+def generate_category_month_note_body(year, month, category, transactions):
+    document = ""
+    frontmatter = create_category_month_frontmatter(year, month, category, transactions)
+    document += frontmatter_dict_to_md(frontmatter)
+    document += "\n# Transactions\n\n"
+    document += "| Account | Payee | YNAB Category | Amount | Link |\n"
+    document += "| ------- | ----- | ------------- | ------ | ---- |\n"
+    for transaction in transactions:
+        amount = normalize_amount(transaction.amount) * -1
+        document += f"| {transaction.account_name} | {transaction.payee_name} | {transaction.category_name} | {amount} | [[{transaction.id}]] |\n"
+    document += "\n^transaction-table\n"
+    document += "# Notes\n\n"
+    return document
 
 
 def create_transaction_frontmatter(transaction):
@@ -89,7 +140,19 @@ def create_transaction_frontmatter(transaction):
     return frontmatter
 
 
-def transaction_frontmatter_to_md(frontmatter):
+def create_category_month_frontmatter(year, month, category, transactions):
+    frontmatter = {
+        "type": "category_month_summary",
+        "category": category,
+        "month": month,
+        "year": year,
+        "total": normalize_amount(sum(t.amount for t in transactions)) * -1,
+        "transactions": [t.id for t in transactions],
+    }
+    return frontmatter
+
+
+def frontmatter_dict_to_md(frontmatter):
     document = "---\n"
     document += yaml.dump(frontmatter, default_flow_style=False)
     document += "---\n"
@@ -123,8 +186,26 @@ def put_transaction_note(transaction, document):
     }
     response = requests.put(url, data=document, headers=headers)
     if response.status_code != 204:
-        raise RuntimeError(response.text)
-    print(response.text)
+        print("Response was not 204:")
+        print(response.text)
+        raise RuntimeError()
+
+
+def put_category_month_note(year, month, category, document):
+    category_folder_url = vault_category_folder_url()
+    filename = f"{category}.md"
+    url = f"{category_folder_url}/{year}/{month:02}/{filename}"
+    obsidian_api_key = os.environ["OBSIDIAN_API_KEY"]
+    headers = {
+        "Content-Type": "text/markdown",
+        "Authorization": f"Bearer {obsidian_api_key}",
+    }
+    response = requests.put(url, data=document, headers=headers)
+    if response.status_code != 204:
+        print("Response was not 204:")
+        print(response.text)
+        raise RuntimeError()
+
 
 def is_transaction_reportable(transaction):
     return (
@@ -133,6 +214,7 @@ def is_transaction_reportable(transaction):
         and not transaction.transfer_transaction_id
     )
 
+
 def is_transaction_income(transaction):
     return (
         transaction.approved
@@ -140,17 +222,26 @@ def is_transaction_income(transaction):
         and is_category_income(transaction.category_name)
     )
 
+
 def is_category_income(category_name):
     return category_name in app_config["ynab"]["income_categories"]
+
 
 def vault_files_base_url():
     host = app_config["obsidian"]["host"]
     port = app_config["obsidian"]["port"]
     return f"http://{host}:{port}/vault"
 
+
 def vault_transaction_folder_url():
     base_url = vault_files_base_url()
     return base_url + "/" + app_config["obsidian"]["transaction_folder_path"]
+
+
+def vault_category_folder_url():
+    base_url = vault_files_base_url()
+    return base_url + "/" + app_config["obsidian"]["category_folder_path"]
+
 
 app_config = get_app_config()
 

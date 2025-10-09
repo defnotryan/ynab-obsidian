@@ -3,7 +3,7 @@ obsidian:
   port: 27123
   secure: false # currently TLS not supported, so make sure it's turned off in the Obsidian Local REST API config
   transaction_folder_path: "Transactions" # path for folder under which to store transaction data (there will be subfolders for year and month)
-  category_folder_path: "Categories" # monthly category rollup notes will be stored here
+  category_folder_path: "Spending By Category" # monthly category rollup notes will be stored here
 
 ynab:
   budget: "last-used" # work with the last budget you accessed in the web app; change this to pick a different budget
