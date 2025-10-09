@@ -1,5 +1,9 @@
-# Sensitive files
+# Sensitive and user-specific files
 .env
+config.yaml
+
+# IDE files
+.idea
 
 # Python-generated files
 __pycache__/
