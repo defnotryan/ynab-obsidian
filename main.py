@@ -151,8 +151,8 @@ def create_category_month_frontmatter(year, month, category, transactions):
     frontmatter = {
         "type": "category_month_summary",
         "category": category,
-        "month": month,
-        "year": year,
+        "month": "{year}-{month:02}",
+        "display_month": datetime.date(year, month, 1).strftime("%B %Y"),
         "total": normalize_amount(sum(t.amount for t in transactions)) * -1,
         "transactions": [t.id for t in transactions],
     }

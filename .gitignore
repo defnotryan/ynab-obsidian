@@ -3,7 +3,7 @@
 config.yaml
 
 # IDE files
-.idea
+.idea/
 
 # Python-generated files
 __pycache__/
@@ -12,6 +12,7 @@ build/
 dist/
 wheels/
 *.egg-info
+.ruff_cache/
 
 # Virtual environments
-.venv
+.venv/
