@@ -81,8 +81,13 @@ def process_transactions(transactions):
     for transaction in spending_transactions:
         year = transaction.var_date.year
         month = transaction.var_date.month
-        category = map_category(transaction.category_name)
-        transactions_by_year_month_category[year][month][category].append(transaction)
+        if len(transaction.subtransactions) > 0:
+            for subtransaction in transaction.subtransactions:
+                category = map_category(subtransaction.category_name)
+                transactions_by_year_month_category[year][month][category].append(subtransaction)
+        else:
+            category = map_category(transaction.category_name)
+            transactions_by_year_month_category[year][month][category].append(transaction)
 
     for year in transactions_by_year_month_category.keys():
         for month in transactions_by_year_month_category[year].keys():
@@ -95,14 +100,18 @@ def process_transactions(transactions):
                 )
 
 
-def create_transaction_note(transaction):
-    document = generate_transaction_note_body(transaction)
-    put_transaction_note(transaction, document)
+def create_transaction_note(transaction, parent_transaction=None):
+    if hasattr(transaction, "subtransactions") and len(transaction.subtransactions) > 0:
+        for subtransaction in transaction.subtransactions:
+            create_transaction_note(subtransaction, transaction)
+    else:
+        document = generate_transaction_note_body(transaction, parent_transaction)
+        put_transaction_note(transaction, document, parent_transaction)
 
 
-def generate_transaction_note_body(transaction) -> str:
+def generate_transaction_note_body(transaction, parent_transaction=None) -> str:
     document = ""
-    frontmatter = create_transaction_frontmatter(transaction)
+    frontmatter = create_transaction_frontmatter(transaction, parent_transaction)
     document += frontmatter_dict_to_md(frontmatter)
     if transaction.memo:
         document += f"{transaction.memo}\n"
@@ -131,18 +140,27 @@ def generate_category_month_note_body(year, month, category, transactions):
     return document
 
 
-def create_transaction_frontmatter(transaction):
+def create_transaction_frontmatter(transaction, parent_transaction=None):
+    if parent_transaction:
+        account_name = parent_transaction.account_name
+        date = normalize_var_date(parent_transaction.var_date)
+        is_income = is_transaction_income(parent_transaction)
+    else:
+        account_name = transaction.account_name
+        date = normalize_var_date(transaction.var_date)
+        is_income = is_transaction_income(transaction)
     frontmatter = {
         "tags": ["ynab_transaction"],
         "transaction_id": transaction.id,
+        "is_subtransaction": parent_transaction is not None,
         "payee": transaction.payee_name,
-        "account": transaction.account_name,
+        "account": account_name,
         "amount": normalize_amount(transaction.amount),
-        "date": normalize_var_date(transaction.var_date),
+        "date": date,
         "category": map_category(transaction.category_name),
         "ynab_category": transaction.category_name,
         "imported_timestamp": datetime.datetime.now().isoformat(),
-        "is_income": is_transaction_income(transaction),
+        "is_income": is_income,
     }
     return frontmatter
 
@@ -153,8 +171,9 @@ def create_category_month_frontmatter(year, month, category, transactions):
         "category": category,
         "month": f"{year}-{month:02}",
         "display_month": datetime.date(year, month, 1).strftime("%B %Y"),
-        "total": normalize_amount(sum(t.amount for t in transactions)) * -1,
+        "total": normalize_amount(sum((t.amount for t in transactions))) * -1,
         "transactions": [t.id for t in transactions],
+        "last_updated": datetime.datetime.now().isoformat(),
     }
     return frontmatter
 
@@ -167,9 +186,10 @@ def frontmatter_dict_to_md(frontmatter):
 
 
 def map_category(category):
-    if category in app_config["ynab"]["category_mapping"]:
-        return app_config["ynab"]["category_mapping"][category]
-    return category
+    trimmed_category = category.strip()
+    if trimmed_category in app_config["ynab"]["category_mapping"]:
+        return app_config["ynab"]["category_mapping"][trimmed_category]
+    return trimmed_category
 
 
 def normalize_amount(amount):
@@ -180,9 +200,17 @@ def normalize_var_date(var_date):
     return var_date.strftime("%Y-%m-%d")
 
 
-def put_transaction_note(transaction, document):
-    year = transaction.var_date.year
-    month = transaction.var_date.month
+def put_transaction_note(transaction, document, parent_transaction=None):
+    year = (
+        parent_transaction.var_date.year
+        if parent_transaction
+        else transaction.var_date.year
+    )
+    month = (
+        parent_transaction.var_date.month
+        if parent_transaction
+        else transaction.var_date.month
+    )
     transaction_folder_url = vault_transaction_folder_url()
     filename = f"{transaction.id}.md"
     url = f"{transaction_folder_url}/{year}/{month:02}/{filename}"
