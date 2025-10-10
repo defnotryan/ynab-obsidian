@@ -13,7 +13,7 @@ def main():
         transactions_api = ynab.TransactionsApi(api_client)
         budget_id = app_config["ynab"]["budget"]
         transactions_response = transactions_api.get_transactions(
-            budget_id, since_date="2025-09-01"
+            budget_id, since_date="2025-07-01"
         )
         process_transactions(transactions_response.data.transactions)
 
@@ -123,7 +123,7 @@ def generate_category_month_note_body(year, month, category, transactions):
             ynab_category AS "YNAB Category",
             currencyformat(amount * -1, "USD") AS "Spent",
             file.link AS "Link"
-        FROM "Transactions/{year}/{month}"
+        FROM "Transactions/{year}/{month:02}"
         WHERE category = "{category}"
         SORT date ASC
 ```\n"""
