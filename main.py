@@ -84,10 +84,14 @@ def process_transactions(transactions):
         if len(transaction.subtransactions) > 0:
             for subtransaction in transaction.subtransactions:
                 category = map_category(subtransaction.category_name)
-                transactions_by_year_month_category[year][month][category].append(subtransaction)
+                transactions_by_year_month_category[year][month][category].append(
+                    subtransaction
+                )
         else:
             category = map_category(transaction.category_name)
-            transactions_by_year_month_category[year][month][category].append(transaction)
+            transactions_by_year_month_category[year][month][category].append(
+                transaction
+            )
 
     for year in transactions_by_year_month_category.keys():
         for month in transactions_by_year_month_category[year].keys():
@@ -228,7 +232,7 @@ def put_transaction_note(transaction, document, parent_transaction=None):
 
 def put_category_month_note(year, month, category, document):
     category_folder_url = vault_category_folder_url()
-    filename = f"{category}.md"
+    filename = f"{year}-{month:02} {category}.md"
     url = f"{category_folder_url}/{year}/{month:02}/{filename}"
     obsidian_api_key = os.environ["OBSIDIAN_API_KEY"]
     headers = {
