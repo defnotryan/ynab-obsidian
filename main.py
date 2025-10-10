@@ -133,7 +133,7 @@ def generate_category_month_note_body(year, month, category, transactions):
 
 def create_transaction_frontmatter(transaction):
     frontmatter = {
-        "type": "ynab_transaction",
+        "tags": ["ynab_transaction"],
         "transaction_id": transaction.id,
         "payee": transaction.payee_name,
         "account": transaction.account_name,
@@ -149,9 +149,9 @@ def create_transaction_frontmatter(transaction):
 
 def create_category_month_frontmatter(year, month, category, transactions):
     frontmatter = {
-        "type": "category_month_summary",
+        "tags": ["category_month_summary"],
         "category": category,
-        "month": "{year}-{month:02}",
+        "month": f"{year}-{month:02}",
         "display_month": datetime.date(year, month, 1).strftime("%B %Y"),
         "total": normalize_amount(sum(t.amount for t in transactions)) * -1,
         "transactions": [t.id for t in transactions],
