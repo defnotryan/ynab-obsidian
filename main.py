@@ -148,13 +148,17 @@ def create_transaction_frontmatter(transaction, parent_transaction=None):
     if parent_transaction:
         account_name = parent_transaction.account_name
         date = normalize_var_date(parent_transaction.var_date)
+        year = parent_transaction.var_date.year
+        month = parent_transaction.var_date.month
         is_income = is_transaction_income(parent_transaction)
     else:
         account_name = transaction.account_name
         date = normalize_var_date(transaction.var_date)
+        year = transaction.var_date.year
+        month = transaction.var_date.month
         is_income = is_transaction_income(transaction)
     frontmatter = {
-        "tags": ["ynab_transaction"],
+        "tags": ["ynab_transaction", f"year-{year}", f"month-{month:02}"],
         "transaction_id": transaction.id,
         "is_subtransaction": parent_transaction is not None,
         "payee": transaction.payee_name,
