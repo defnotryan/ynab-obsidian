@@ -1,5 +1,7 @@
 # Sensitive and user-specific files
 .env
+.accounts.serverknowledge
+.transactions.serverknowledge
 config.yaml
 
 # IDE files

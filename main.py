@@ -1,4 +1,5 @@
 import datetime
+import json
 import os
 from collections import defaultdict
 
@@ -10,12 +11,23 @@ import ynab
 def main():
     ynab_api_config = get_ynab_api_config(app_config)
     with ynab.ApiClient(ynab_api_config) as api_client:
-        transactions_api = ynab.TransactionsApi(api_client)
         budget_id = app_config["ynab"]["budget"]
-        transactions_response = transactions_api.get_transactions(
-            budget_id, since_date="2025-07-01"
-        )
-        process_transactions(transactions_response.data.transactions)
+        update_transactions(api_client, budget_id)
+        update_account_snapshots(api_client, budget_id)
+
+
+def update_transactions(api_client, budget_id):
+    transactions_api = ynab.TransactionsApi(api_client)
+    transactions_response = transactions_api.get_transactions(
+        budget_id, since_date="2025-07-01"
+    )
+    process_transactions(transactions_response.data.transactions)
+
+
+def update_account_snapshots(api_client, budget_id):
+    accounts_api = ynab.AccountsApi(api_client)
+    accounts_response = accounts_api.get_accounts(budget_id)
+    process_accounts(accounts_response.data.accounts)
 
 
 def get_ynab_api_config(app_config):
@@ -47,6 +59,8 @@ def get_app_config():
         new_app_config["obsidian"]["transaction_folder_path"] = "Transactions"
     if "category_folder_path" not in new_app_config["obsidian"]:
         new_app_config["obsidian"]["category_folder_path"] = "Categories"
+    if "account_snapshots_folder_path" not in new_app_config["obsidian"]:
+        new_app_config["obsidian"]["account_snapshots_folder_path"] = "AccountSnapshots"
     if "ynab" not in new_app_config:
         new_app_config["ynab"] = {"budget": "last_used", "category_mapping": {}}
     if "budget" not in new_app_config["ynab"]:
@@ -222,11 +236,8 @@ def put_transaction_note(transaction, document, parent_transaction=None):
     transaction_folder_url = vault_transaction_folder_url()
     filename = f"{transaction.id}.md"
     url = f"{transaction_folder_url}/{year}/{month:02}/{filename}"
-    obsidian_api_key = os.environ["OBSIDIAN_API_KEY"]
-    headers = {
-        "Content-Type": "text/markdown",
-        "Authorization": f"Bearer {obsidian_api_key}",
-    }
+    headers = obsidian_headers()
+    headers["Content-Type"] = "text/markdown"
     response = requests.put(url, data=document, headers=headers)
     if response.status_code != 204:
         print("Response was not 204:")
@@ -238,11 +249,8 @@ def put_category_month_note(year, month, category, document):
     category_folder_url = vault_category_folder_url()
     filename = f"{year}-{month:02} {category}.md"
     url = f"{category_folder_url}/{year}/{month:02}/{filename}"
-    obsidian_api_key = os.environ["OBSIDIAN_API_KEY"]
-    headers = {
-        "Content-Type": "text/markdown",
-        "Authorization": f"Bearer {obsidian_api_key}",
-    }
+    headers = obsidian_headers()
+    headers["Content-Type"] = "text/markdown"
     response = requests.put(url, data=document, headers=headers)
     if response.status_code != 204:
         print("Response was not 204:")
@@ -284,6 +292,112 @@ def vault_transaction_folder_url():
 def vault_category_folder_url():
     base_url = vault_files_base_url()
     return base_url + "/" + app_config["obsidian"]["category_folder_path"]
+
+
+def vault_account_snapshots_folder_url():
+    base_url = vault_files_base_url()
+    return base_url + "/" + app_config["obsidian"]["account_snapshots_folder_path"]
+
+
+def obsidian_headers():
+    obsidian_api_key = os.environ["OBSIDIAN_API_KEY"]
+    return {
+        "Authorization": f"Bearer {obsidian_api_key}",
+    }
+
+
+def process_accounts(accounts):
+    for account in accounts:
+        if not account.closed and not account.deleted:
+            process_account_snapshot(account)
+
+
+def process_account_snapshot(account):
+    # are we creating a new snapshot note or does one exist already?
+    if account_snapshot_exists(account):
+        print("Account snapshot already exists; we'll patch it.")
+        patch_account_snapshot_note(account)
+    else:
+        print("Account snapshot does not exist; we'll create it.")
+        document = generate_account_snapshot_note_body(account)
+        put_account_snapshot_note(account, document)
+
+
+def account_snapshot_exists(account):
+    url = url_for_account_snapshot_note(account)
+    headers = obsidian_headers()
+    headers["Content-Type"] = "text/markdown"
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return True
+    elif response.status_code == 404:
+        return False
+    else:
+        print("Response was neither 200 nor 404:")
+        print(response.text)
+        raise RuntimeError()
+
+
+def patch_account_snapshot_note(account):
+    frontmatter = create_account_snapshot_frontmatter(account)
+    for prop in ["timestamp", "balance", "cleared_balance"]:
+        patch_account_snapshot_note_property(account, prop, frontmatter[prop])
+
+
+def patch_account_snapshot_note_property(account, prop, value):
+    print(f"Patching {prop} to {value} for account {account.name}")
+    url = url_for_account_snapshot_note(account)
+    headers = obsidian_headers()
+    headers["Content-Type"] = "application/json"
+    headers["Operation"] = "replace"
+    headers["Target-Type"] = "frontmatter"
+    headers["Target"] = prop
+    headers["Create-Target-If-Missing"] = "true"
+    data = json.dumps(value)
+    response = requests.patch(url, headers=headers, data=data)
+    if response.status_code != 200:
+        print("Response was not 200:")
+        print(response.text)
+        raise RuntimeError()
+
+
+def url_for_account_snapshot_note(account):
+    account_snapshots_folder_url = vault_account_snapshots_folder_url()
+    filename = f"{account.id}.md"
+    return f"{account_snapshots_folder_url}/{filename}"
+
+
+def put_account_snapshot_note(account, document):
+    url = url_for_account_snapshot_note(account)
+    headers = obsidian_headers()
+    headers["Content-Type"] = "text/markdown"
+    response = requests.put(url, data=document, headers=headers)
+    if response.status_code != 204:
+        print("Response was not 204:")
+        print(response.text)
+        raise RuntimeError()
+
+
+def generate_account_snapshot_note_body(account):
+    document = ""
+    frontmatter = create_account_snapshot_frontmatter(account)
+    document += frontmatter_dict_to_md(frontmatter)
+    return document
+
+
+def create_account_snapshot_frontmatter(account):
+    now = datetime.datetime.now()
+    account_type = account.type.value
+    frontmatter = {
+        "tags": ["ynab_account_snapshot", f"account_{account_type}"],
+        "timestamp": now.isoformat(),
+        "account_id": account.id,
+        "account_name": account.name,
+        "account_type": account_type,
+        "balance": normalize_amount(account.balance),
+        "cleared_balance": normalize_amount(account.cleared_balance),
+    }
+    return frontmatter
 
 
 app_config = get_app_config()
