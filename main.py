@@ -12,7 +12,7 @@ def main():
     ynab_api_config = get_ynab_api_config(app_config)
     with ynab.ApiClient(ynab_api_config) as api_client:
         budget_id = app_config["ynab"]["budget"]
-        update_transactions(api_client, budget_id)
+        # update_transactions(api_client, budget_id)
         update_account_snapshots(api_client, budget_id)
 
 
@@ -26,8 +26,46 @@ def update_transactions(api_client, budget_id):
 
 def update_account_snapshots(api_client, budget_id):
     accounts_api = ynab.AccountsApi(api_client)
-    accounts_response = accounts_api.get_accounts(budget_id)
+    accounts_last_server_knowledge = get_accounts_last_server_knowledge()
+    print(f"Accounts last server knowledge: {accounts_last_server_knowledge}")
+    accounts_response = accounts_api.get_accounts(
+        budget_id, last_knowledge_of_server=accounts_last_server_knowledge
+    )
+    print(f"Accounts to process: {len(accounts_response.data.accounts)}")
     process_accounts(accounts_response.data.accounts)
+    save_accounts_last_server_knowledge(accounts_response.data.server_knowledge)
+
+
+def get_accounts_last_server_knowledge():
+    last_server_knowledge = get_last_server_knowledge()
+    if "accounts" in last_server_knowledge:
+        return last_server_knowledge["accounts"]
+    else:
+        return None
+
+
+def save_accounts_last_server_knowledge(accounts_last_server_knowledge):
+    if not accounts_last_server_knowledge:
+        return
+    last_server_knowledge = get_last_server_knowledge()
+    last_server_knowledge["accounts"] = accounts_last_server_knowledge
+    save_last_server_knowledge(last_server_knowledge)
+
+
+def save_last_server_knowledge(last_server_knowledge):
+    with open(".last_server_knowledge.json", "w") as f:
+        print("Saving last server knowledge...")
+        print(json.dumps(last_server_knowledge, indent=4))
+        json.dump(last_server_knowledge, f)
+
+
+def get_last_server_knowledge():
+    try:
+        with open(".last_server_knowledge.json") as f:
+            last_server_knowledge = json.load(f)
+    except FileNotFoundError:
+        last_server_knowledge = {}
+    return last_server_knowledge
 
 
 def get_ynab_api_config(app_config):
