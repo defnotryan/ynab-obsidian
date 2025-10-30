@@ -5,6 +5,7 @@ import ynab
 
 from ynab_obsidian.app_config import app_config
 from ynab_obsidian.note_sync import NoteSync
+from ynab_obsidian.server_knowledge import ServerKnowledge
 from ynab_obsidian.util import (
     normalize_amount,
     normalize_var_date,
@@ -23,10 +24,25 @@ class Transactions:
 
     def update_transactions(self, budget_id):
         transactions_api = ynab.TransactionsApi(self.ynab_api_client)
+        server_knowledge = ServerKnowledge()
+        transactions_last_server_knowledge = (
+            server_knowledge.get_transactions_last_server_knowledge()
+        )
+        print(
+            f"Transactions last server knowledge: {transactions_last_server_knowledge}"
+        )
         transactions_response = transactions_api.get_transactions(
-            budget_id, since_date="2025-07-01"
+            budget_id,
+            since_date="2025-07-01",
+            last_knowledge_of_server=transactions_last_server_knowledge,
+        )
+        print(
+            f"Transactions to process: {len(transactions_response.data.transactions)}"
         )
         self.process_transactions(transactions_response.data.transactions)
+        server_knowledge.save_transactions_last_server_knowledge(
+            transactions_response.data.server_knowledge
+        )
 
     def process_transactions(self, transactions):
         reportable_transactions = [

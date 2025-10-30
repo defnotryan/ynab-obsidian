@@ -1,11 +1,11 @@
 import json
 
+from ynab_obsidian.app_config import app_config
+
 
 class ServerKnowledge:
-    def __init__(
-        self, last_server_knowledge_filename: str = ".last_server_knowledge.json"
-    ):
-        self.last_server_knowledge_filename = last_server_knowledge_filename
+    def __init__(self):
+        self.last_server_knowledge_filename = app_config.last_server_knowledge_filename
 
     def get_accounts_last_server_knowledge(self):
         last_server_knowledge = self.get_last_server_knowledge()
@@ -19,6 +19,22 @@ class ServerKnowledge:
             return
         last_server_knowledge = self.get_last_server_knowledge()
         last_server_knowledge["accounts"] = accounts_last_server_knowledge
+        self.save_last_server_knowledge(last_server_knowledge)
+
+    def get_transactions_last_server_knowledge(self):
+        last_server_knowledge = self.get_last_server_knowledge()
+        if "transactions" in last_server_knowledge:
+            return last_server_knowledge["transactions"]
+        else:
+            return None
+
+    def save_transactions_last_server_knowledge(
+        self, transactions_last_server_knowledge
+    ):
+        if not transactions_last_server_knowledge:
+            return
+        last_server_knowledge = self.get_last_server_knowledge()
+        last_server_knowledge["transactions"] = transactions_last_server_knowledge
         self.save_last_server_knowledge(last_server_knowledge)
 
     def save_last_server_knowledge(self, last_server_knowledge):

@@ -21,3 +21,5 @@ ynab:
   # These categories will be treated as income, which is analyzed separately from spending.
   income_categories:
     - "Inflow: Ready to Assign"
+
+last_server_knowledge_filename: ".last_server_knowledge.json"
