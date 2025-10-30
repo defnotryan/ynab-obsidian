@@ -3,6 +3,7 @@ from collections import defaultdict
 
 import ynab
 
+from ynab_obsidian.app_config import app_config
 from ynab_obsidian.note_sync import NoteSync
 from ynab_obsidian.util import (
     normalize_amount,
@@ -13,12 +14,12 @@ from ynab_obsidian.vault import Vault
 
 
 class Transactions:
-    def __init__(self, vault: Vault, ynab_api_client: ynab.ApiClient, app_config: dict):
+    def __init__(self, vault: Vault, ynab_api_client: ynab.ApiClient):
         self.vault = vault
         self.ynab_api_client = ynab_api_client
         self.note_sync = NoteSync(api_key=vault.api_key())
-        self.income_categories: list = app_config["ynab"]["income_categories"]
-        self.category_mapping: dict = app_config["ynab"]["category_mapping"]
+        self.income_categories: list = app_config.ynab.income_categories
+        self.category_mapping: dict = app_config.ynab.category_mapping
 
     def update_transactions(self, budget_id):
         transactions_api = ynab.TransactionsApi(self.ynab_api_client)
