@@ -31,9 +31,13 @@ class Transactions:
         print(
             f"Transactions last server knowledge: {transactions_last_server_knowledge}"
         )
+        if len(app_config.sync_begin_date) > 0:
+            since_date = app_config.sync_begin_date
+        else:
+            since_date = None
         transactions_response = transactions_api.get_transactions(
             budget_id,
-            since_date="2025-07-01",
+            since_date=since_date,
             last_knowledge_of_server=transactions_last_server_knowledge,
         )
         print(

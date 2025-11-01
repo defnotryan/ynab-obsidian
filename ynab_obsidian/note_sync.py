@@ -1,4 +1,5 @@
 import json
+import time
 
 import requests
 
@@ -23,6 +24,8 @@ class NoteSync:
             print("Response was not 204:")
             print(response.text)
             raise RuntimeError()
+        response.close()
+        time.sleep(0.01)
 
     def patch_frontmatter(self, url, frontmatter):
         for key, value in frontmatter.items():
@@ -41,18 +44,23 @@ class NoteSync:
             print("Response was not 200:")
             print(response.text)
             raise RuntimeError()
+        response.close()
+        time.sleep(0.01)
 
     def note_exists(self, url):
         headers = self.__obsidian_headers()
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
-            return True
+            result = True
         elif response.status_code == 404:
-            return False
+            result = False
         else:
             print("Response was neither 200 nor 404:")
             print(response.text)
             raise RuntimeError()
+        response.close()
+        time.sleep(0.01)
+        return result
 
     def __obsidian_headers(self):
         return {

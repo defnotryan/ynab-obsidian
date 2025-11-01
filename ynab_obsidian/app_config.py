@@ -24,6 +24,7 @@ class AppSettings(BaseSettings):
     ynab: YnabConfig
     ynab_pat: str
     last_server_knowledge_filename: str = ".last_server_knowledge.json"
+    sync_begin_date: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

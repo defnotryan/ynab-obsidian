@@ -23,3 +23,4 @@ ynab:
     - "Inflow: Ready to Assign"
 
 last_server_knowledge_filename: ".last_server_knowledge.json"
+sync_begin_date: None # Or a date like "2025-07-01". If you set this and then update it to be earlier, delete the .last_server_knowledge.json file.
