@@ -17,3 +17,7 @@ wheels/
 
 # Virtual environments
 .venv/
+
+# JS Dependencies
+scripts/node_modules/
+scripts/package-lock.json
