@@ -16,6 +16,19 @@ const currentFiNumber = (dv, windowSize) => {
     return fiNumber;
 }
 
+const fiNumberForMonth = (dv, ymk, windowSize) => {
+    const window = YearMonthKey.generatePreviousMonths(ymk, windowSize);
+    const totalSpendingForWindow = SpendingQueries.txnsInYearMonthSet(dv, window)
+        .filter(t => !t.is_income)
+            .map(t => -t.amount)
+            .sum();
+    const spendingPerMonth = totalSpendingForWindow / windowSize;
+    const spendingPerYear = spendingPerMonth * 12;
+    const fiNumber = spendingPerYear * fiMultiplier;
+    return fiNumber;
+}
+
 module.exports = {
-    currentFiNumber
+    currentFiNumber,
+    fiNumberForMonth
 }

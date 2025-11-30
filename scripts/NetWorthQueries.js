@@ -28,6 +28,14 @@ const netWorthWithRealEstateAsOfYearMonth = (dv, yearMonthKey) => {
     return cashLikeTotal + retirementTotal + brokerageTotal + (realEstateTotalAssets - mortgageTotalLiabilities);
 }
 
+const netWorthWithInvestmentRealEstateAsOfYearMonth = (dv, yearMonthKey) => {
+    const cashLikeTotal = AccountQueries.sumLatestClearedBalancesForAccountsAsOfYearMonth(dv, yearMonthKey);
+    const realEstateTotalAssets = RealEstateQueries.sumLatestValuesForInvestmentPropertiesAsOfYearMonth(dv, yearMonthKey);
+    const retirementTotal = InvestmentAccountQueries.sumLatestValuesForRetirementAccountsAsOfYearMonth(dv, yearMonthKey);
+    const brokerageTotal = InvestmentAccountQueries.sumLatestValuesForBrokerageAccountsAsOfYearMonth(dv, yearMonthKey);
+    return cashLikeTotal + retirementTotal + brokerageTotal + realEstateTotalAssets;
+}
+
 const investableNetWorthAsOfYearMonth = (dv, yearMonthKey) => {
     const cashLikeTotal = AccountQueries.sumLatestClearedBalancesForAccountsAsOfYearMonth(dv, yearMonthKey);
     const retirementTotal = InvestmentAccountQueries.sumLatestValuesForRetirementAccountsAsOfYearMonth(dv, yearMonthKey);
@@ -39,5 +47,6 @@ module.exports = {
     latestNetWorthWithRealEstate,
     latestInvestableNetWorth,
     netWorthWithRealEstateAsOfYearMonth,
+    netWorthWithInvestmentRealEstateAsOfYearMonth,
     investableNetWorthAsOfYearMonth
 }

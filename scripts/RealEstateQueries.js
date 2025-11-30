@@ -45,10 +45,23 @@ const sumLatestValuesForPropertiesAsOfYearMonth = (dv, yearMonthKey) =>
         )
         .sum();
 
+const sumLatestValuesForInvestmentPropertiesAsOfYearMonth = (dv, yearMonthKey) =>
+    dv.pages('#real-estate-snapshot and #investment-real-estate and -"meta/templates"')
+        .where(p => YearMonthKey.isIsoStringNoLaterThanEndOfMonth(p.date, yearMonthKey))
+        .groupBy(p => p.property)
+        .map(group => group.rows
+            .sort(p => p.date, "desc")
+            .limit(1)
+            .map(p => p.value_estimate)
+            .first()
+        )
+        .sum();
+
 module.exports = {
     listProperties,
     latestValueForProperty,
     sumLatestValuesForProperties,
     latestValueForPropertyAsOfYearMonth,
-    sumLatestValuesForPropertiesAsOfYearMonth
+    sumLatestValuesForPropertiesAsOfYearMonth,
+    sumLatestValuesForInvestmentPropertiesAsOfYearMonth
 };
