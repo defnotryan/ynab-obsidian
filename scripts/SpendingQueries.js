@@ -18,7 +18,8 @@ const yearMonthKeys = (dv) =>
 const txnsByYearMonth = (dv, ymk) => {
     const yearTag = yearTagFor(ymk);
     const monthTag = monthTagFor(ymk);
-    return dv.pages(`#ynab_transaction and ${yearTag} and ${monthTag}`);
+    return dv.pages(`#ynab_transaction and ${yearTag} and ${monthTag}`)
+        .filter(p => !(typeof p.memo === 'string' && p.memo.includes("not-spending")));
 }
 
 const txnsInYearMonthSet = (dv, ymks) => {
