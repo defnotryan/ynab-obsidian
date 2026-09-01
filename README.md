@@ -58,3 +58,8 @@ To use these scripts,
 2. In your terminal, make `meta/scripts` a symbolic link to the `scripts` directory in this project. Running `ls meta/scripts` should show you a bunch of `.js` files.
 3. Install and enable the CodeScript Toolkit plugin. Set the script modules root to `meta/scripts`.
 4. In a Dataviewjs block, you can now use `const TableUtils = await requireAsync("/TableUtils");` for example.
+
+Investment snapshot queries use the vault's investment-account registry notes,
+tagged `investment-account-meta`, as the source of account classification and
+lifecycle metadata. Snapshot notes retain their `investment_account` field as
+the registry key and retain classification tags for consistency checks.
